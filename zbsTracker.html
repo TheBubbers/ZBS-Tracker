@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zwift Big Spin Check List</title>
+
+<style>
+:root {
+  --primary: #f5a12c;
+  --surface: #ffffff;
+  --text-primary: #222;
+  --text-secondary: #777;
+  --shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Roboto, "Segoe UI", sans-serif;
+  background: var(--primary);
+}
+
+.header {
+  text-align: center;
+  margin: 40px 0 10px;
+  color: white;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.share-container {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+button {
+  background: white;
+  color: var(--primary);
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+button:hover { transform: translateY(-2px); }
+
+.container {
+  width: 50%;
+  margin: 0 auto 80px;
+}
+
+#shareNotice {
+  display: none;
+  text-align: center;
+  background: white;
+  color: var(--primary);
+  padding: 12px;
+  font-weight: 600;
+  margin-bottom: 20px; 
+}
+
+/* Cards */
+
+.year-section {
+  background: var(--surface);
+  border-radius: 18px;
+  margin-bottom: 35px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.year-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+
+.year-header {
+  padding: 20px;
+  cursor: pointer;
+}
+
+.year-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.year-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.toggle-collapse {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--primary);
+  width: 30px;
+  text-align: center;
+}
+
+.progress-bar {
+  margin-top: 14px;
+  height: 8px;
+  background: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  transition: width 0.4s ease;
+}
+
+.progress-text {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.year-content {
+  padding: 0 16px 20px 16px;
+}
+
+.year-section.collapsed .year-content {
+  display: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin: 6px 0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.item:hover { background: #f8f8f8; }
+
+.toggle {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--primary);
+  margin-right: 14px;
+  position: relative;
+}
+
+.toggle::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.2s ease;
+}
+
+.item.checked .toggle::after {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.item.checked .item-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+/* Modal */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal-card {
+  background: white;
+  padding: 25px;
+  border-radius: 14px;
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.modal-card input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  margin: 15px 0;
+  font-size: 13px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-actions button {
+  flex: 1;
+}
+
+/* Mobile */
+
+@media (max-width: 900px) {
+  .container { width: 90%; }
+  .header { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">Zwift Big Spin Check List</div>
+
+<div id="shareNotice">
+Viewing shared progress — changes will not be saved locally.
+</div>
+
+<div class="share-container">
+  <button onclick="generateShareLink()">Share</button>
+  <button onclick="generateExportLink()">Export</button>
+</div>
+
+<div class="container">
+  <div id="years"></div>
+</div>
+
+<!-- Modal -->
+<div id="shareModal" class="modal-overlay">
+  <div class="modal-card">
+    <h3>Share Link</h3>
+    <input id="shareLinkInput" readonly />
+    <div class="modal-actions">
+      <button onclick="copyShareLink()">Copy</button>
+      <button onclick="closeShareModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const data = {
+  "2026": [
+    "MX Rider",
+    "Big Spin Tri-Spoke",
+    "Big Spin Limeade Helmet",
+    "Jungle Phones",
+    "Rhinestone Rider Kit",
+    "Rhinestone Rider Hat",
+    "Mayan Camo Kit",
+    "Paisley Bandana",
+    "Lumberjack Chic Kit",
+    "Lumberjack Chic Beanie",
+    "Dino-mite Kit",
+    "Dino-mite Hard Hat"
+  ],
+  "2025": [
+    "BMX Bandit Bike",
+    "Groovy TT Wheels",
+    "Sticker Skate Helmet",
+    "Big Spin 2025 Headphones",
+    "Groovy Tile Kit",
+    "Groovy Bucket Hat",
+    "Memphis Milano Kit",
+    "Granny Visor",
+    "Mono Jazz Kit",
+    "90s Headphones",
+    "Y2K Hacker Kit",
+    "Chrome Sunglasses"
+  ],
+  "2024": [
+    "Atomic Cruiser",
+    "Tri Spoke and disc wheel",
+    "Sky Blue Helmet",
+    "Orange Headphones",
+    "The Zwift Big Spin Shoes",
+    "Classic Crew socks",
+    "Makuri Kanji Kit",
+    "Makuri Neon Sunglasses",
+    "London Punk Kit",
+    "Union Jack Bucket Hat",
+    "NY Baseball Kit",
+    "NY Baseball Cap",
+    "Le Tournesol Kit",
+    "Le Beret"
+  ]
+};
+
+let state = {};
+let collapsedState = {};
+let readOnlyShareMode = false;
+
+/* INIT */
+
+function init(){
+  loadState();
+  applyURLState();
+  render();
+}
+
+/* URL Handling */
+
+function applyURLState(){
+  const params = new URLSearchParams(window.location.search);
+
+  if(params.has("share")){
+    decodeStateCompact(params.get("share"));
+    readOnlyShareMode = true;
+    document.getElementById("shareNotice").style.display = "block";
+  }
+
+  if(params.has("export")){
+    decodeStateCompact(params.get("export"));
+    saveState();
+  }
+}
+
+/* Rendering */
+
+function render(){
+  const container = document.getElementById("years");
+  container.innerHTML = "";
+
+  Object.keys(data).sort((a,b)=>b-a).forEach(year => {
+
+    const section = document.createElement("div");
+    section.className = "year-section";
+    if(collapsedState[year]) section.classList.add("collapsed");
+
+    const img = document.createElement("img");
+    img.className = "year-image";
+    img.src = "./zbsBanner" + year + ".png";
+    section.appendChild(img);
+
+    const header = document.createElement("div");
+    header.className = "year-header";
+    header.onclick = () => toggleCollapse(year);
+
+    const top = document.createElement("div");
+    top.className = "year-top";
+
+    const title = document.createElement("div");
+    title.className = "year-title";
+    title.innerText = year;
+
+    const toggle = document.createElement("div");
+    toggle.className = "toggle-collapse";
+    toggle.innerText = collapsedState[year] ? "+" : "−";
+
+    top.appendChild(title);
+    top.appendChild(toggle);
+    header.appendChild(top);
+
+    let completed = 0;
+    data[year].forEach((_,i)=>{ if(state[`${year}-${i}`]) completed++; });
+
+    const percent = Math.round((completed / data[year].length) * 100);
+
+    const bar = document.createElement("div");
+    bar.className = "progress-bar";
+    const fill = document.createElement("div");
+    fill.className = "progress-fill";
+    fill.style.width = percent + "%";
+    bar.appendChild(fill);
+
+    const text = document.createElement("div");
+    text.className = "progress-text";
+    text.innerText = `${completed}/${data[year].length} completed • ${percent}%`;
+
+    header.appendChild(bar);
+    header.appendChild(text);
+
+    section.appendChild(header);
+
+    const content = document.createElement("div");
+    content.className = "year-content";
+
+    /* Mark / Clear Controls */
+
+    const controls = document.createElement("div");
+    controls.style.textAlign = "right";
+    controls.style.margin = "10px 0";
+
+    const markAll = document.createElement("button");
+    markAll.innerText = "Mark All";
+    markAll.onclick = (e)=>{
+      e.stopPropagation();
+      if(readOnlyShareMode) return;
+      data[year].forEach((_,i)=> state[`${year}-${i}`]=true);
+      saveState();
+      render();
+    };
+
+    const clearAll = document.createElement("button");
+    clearAll.innerText = "Clear All";
+    clearAll.style.marginLeft = "10px";
+    clearAll.onclick = (e)=>{
+      e.stopPropagation();
+      if(readOnlyShareMode) return;
+      data[year].forEach((_,i)=> state[`${year}-${i}`]=false);
+      saveState();
+      render();
+    };
+
+    controls.appendChild(markAll);
+    controls.appendChild(clearAll);
+    content.appendChild(controls);
+
+    /* Items */
+
+    data[year].forEach((item,i)=>{
+      const id = `${year}-${i}`;
+
+      const row = document.createElement("div");
+      row.className = "item";
+      if(state[id]) row.classList.add("checked");
+
+      row.onclick = (e)=>{
+        e.stopPropagation();
+        if(readOnlyShareMode) return;
+        state[id] = !state[id];
+        saveState();
+        render();
+      };
+
+      const box = document.createElement("div");
+      box.className = "toggle";
+
+      const label = document.createElement("div");
+      label.className = "item-text";
+      label.innerText = item;
+
+      row.appendChild(box);
+      row.appendChild(label);
+      content.appendChild(row);
+    });
+
+    section.appendChild(content);
+    container.appendChild(section);
+  });
+}
+
+/* Storage */
+
+function saveState(){
+  localStorage.setItem("bigSpinState", JSON.stringify(state));
+}
+
+function loadState(){
+  const saved = localStorage.getItem("bigSpinState");
+  if(saved) state = JSON.parse(saved);
+}
+
+/* Collapse */
+
+function toggleCollapse(year){
+  collapsedState[year] = !collapsedState[year];
+  render();
+}
+
+/* Share / Export */
+
+function encodeStateCompact() {
+  const years = Object.keys(data).sort((a,b)=>b-a);
+  let result = [];
+
+  years.forEach(year => {
+    let bits = "";
+    data[year].forEach((_, i) => {
+      bits += state[`${year}-${i}`] ? "1" : "0";
+    });
+
+    // Convert binary to base36 (much shorter)
+    const base36 = parseInt(bits || "0", 2).toString(36);
+    result.push(base36);
+  });
+
+  return result.join(".");
+}
+
+function decodeStateCompact(encoded) {
+  const years = Object.keys(data).sort((a,b)=>b-a);
+  const parts = encoded.split(".");
+
+  state = {};
+
+  years.forEach((year, yIndex) => {
+    const base36 = parts[yIndex] || "0";
+    const binary = parseInt(base36, 36)
+      .toString(2)
+      .padStart(data[year].length, "0");
+
+    binary.split("").forEach((bit, i) => {
+      if(bit === "1") {
+        state[`${year}-${i}`] = true;
+      }
+    });
+  });
+}
+
+function generateShareLink(){
+  const encoded = encodeStateCompact();
+  showModal(`${location.origin}${location.pathname}?share=${encoded}`);
+}
+
+function generateExportLink(){
+  const encoded = encodeStateCompact();
+  showModal(`${location.origin}${location.pathname}?export=${encoded}`);
+}
+
+/* Modal */
+
+function showModal(url){
+  document.getElementById("shareLinkInput").value = url;
+  document.getElementById("shareModal").classList.add("active");
+}
+
+function closeShareModal(){
+  document.getElementById("shareModal").classList.remove("active");
+}
+
+function copyShareLink(){
+  const input = document.getElementById("shareLinkInput");
+  navigator.clipboard.writeText(input.value).then(()=>{
+    closeShareModal();
+  });
+}
+
+init();
+
+</script>
+</body>
+</html>
