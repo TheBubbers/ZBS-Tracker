@@ -34,7 +34,24 @@ body {
   text-align: center;
   margin-bottom: 30px;
 }
+.view-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  text-align: center;
+  padding: 10px 0 20px;
+  background: var(--primary);
+}
 
+.view-toggle button {
+  margin: 0 6px;
+}
+
+.view-toggle button.active {
+  background: var(--primary);
+  color: white;
+  border: 2px solid white;
+}
 button {
   background: white;
   color: var(--primary);
@@ -227,6 +244,8 @@ button:hover { transform: translateY(-2px); }
 
 <div class="header">Zwift Big Spin Check List</div>
 
+
+
 <div id="shareNotice">
 Viewing shared progress — changes will not be saved locally.
 </div>
@@ -234,6 +253,12 @@ Viewing shared progress — changes will not be saved locally.
 <div class="share-container">
   <button onclick="generateShareLink()">Share</button>
   <button onclick="generateExportLink()">Export</button>
+</div>
+
+<div class="view-toggle">
+  <button id="btn-year" class="active" onclick="setView('year')">By Year</button>
+  <button id="btn-type" onclick="setView('type')">By Type</button>
+  <button id="btn-route" onclick="setView('route')">By Route</button>
 </div>
 
 <div class="container">
@@ -254,7 +279,7 @@ Viewing shared progress — changes will not be saved locally.
 
 <script>
 
-const data = {
+const yearData = {
   "2026": [
     "MX Rider",
     "Big Spin Tri-Spoke",
@@ -301,9 +326,128 @@ const data = {
   ]
 };
 
+const typeData = {
+"Bikes": [
+    "MX Rider",
+    "BMX Bandit Bike",
+    "Atomic Cruiser"
+],
+"Wheels": [
+    "Big Spin Tri-Spoke",
+    "Groovy TT Wheels",
+    "Tri Spoke and disc wheel"
+],
+"Kits": [
+    "Rhinestone Rider Kit",
+    "Mayan Camo Kit",
+    "Lumberjack Chic Kit",
+    "Dino-mite Kit",
+    "Groovy Tile Kit",
+    "Memphis Milano Kit",
+    "Mono Jazz Kit",
+    "Y2K Hacker Kit",
+    "Makuri Kanji Kit",
+    "London Punk Kit",
+    "NY Baseball Kit",
+    "Le Tournesol Kit"
+],
+"Headwear": [
+    "Big Spin Limeade Helmet",
+    "Jungle Phones",
+    "Rhinestone Rider Hat",
+    "Paisley Bandana",
+    "Lumberjack Chic Beanie",
+    "Dino-mite Hard Hat",
+    "Sticker Skate Helmet",
+    "Big Spin 2025 Headphones",
+    "Groovy Bucket Hat",
+    "Granny Visor",
+    "90s Headphones",
+    "Sky Blue Helmet",
+    "Orange Headphones",
+    "Union Jack Bucket Hat",
+    "NY Baseball Cap",
+    "Le Beret"
+],
+"Glasses": [
+    "Chrome Sunglasses",
+    "Makuri Neon Sunglasses"
+],
+"Footwear": [
+    "The Zwift Big Spin Shoes",
+    "Classic Crew socks"
+]};
+
+const routeData = {
+"Flat Out Fast/Mayan San Remo/Southern Coastal Cruise/Sand and Sequoias (All 2026 Routes)":[
+    "MX Rider",
+    "Big Spin Tri-Spoke",
+    "Big Spin Limeade Helmet",
+    "Jungle Phones"
+],
+"Flat Out Fast (2026 Stage 1)":[
+    "Rhinestone Rider Kit",
+    "Rhinestone Rider Hat"
+],
+"Mayan San Remo (2026 Stage 2)": [
+    "Mayan Camo Kit",
+    "Paisley Bandana"
+],
+"Southern Coastal Cruise (2026 Stage 3)": [
+    "Lumberjack Chic Kit",
+    "Lumberjack Chic Beanie"
+],
+"Sand and Sequoias (2026 Stage 4)": [
+    "Dino-mite Kit",
+    "Dino-mite Hard Hat"
+],
+"Alpe du Zwift/Epic KOM (Mystery Spinner)": [
+    "BMX Bandit Bike",
+    "Groovy TT Wheels",
+    "Atomic Cruiser",
+    "Tri Spoke and disc wheel",
+],
+"Radio Tower KOM/Volcano KOM (Mystery Spinner)": [
+    "Sticker Skate Helmet",
+    "Big Spin 2025 Headphones",
+    "The Zwift Big Spin Shoes",
+    "Classic Crew socks",
+    "Sky Blue Helmet",
+    "Orange Headphones",
+
+],
+"Hilly KOM/Jarvis KOM (Mystery Spinner)": [
+    "Groovy Tile Kit",
+    "Memphis Milano Kit",
+    "Mono Jazz Kit",
+    "Y2K Hacker Kit",
+    "Makuri Kanji Kit",
+    "London Punk Kit",
+    "NY Baseball Kit",
+    "Le Tournesol Kit",
+],
+"Volcano Circuit/Stoneway Sprint Reverse (Mystery Spinner)":[
+    "Groovy Bucket Hat",
+    "Granny Visor",
+    "90s Headphones",
+    "Chrome Sunglasses",
+    "Makuri Neon Sunglasses",
+    "Union Jack Bucket Hat",
+    "NY Baseball Cap",
+    "Le Beret"
+]
+};
+const allItems = [
+  ...new Set([
+    ...Object.values(yearData).flat(),
+    ...Object.values(typeData).flat(),
+    ...Object.values(routeData).flat()
+  ])
+];
 let state = {};
 let collapsedState = {};
 let readOnlyShareMode = false;
+let currentView = "year";
 
 /* INIT */
 
@@ -324,10 +468,14 @@ function applyURLState(){
     document.getElementById("shareNotice").style.display = "block";
   }
 
-  if(params.has("export")){
-    decodeStateCompact(params.get("export"));
-    saveState();
-  }
+if(params.has("export")){
+  decodeStateCompact(params.get("export"));
+  saveState();
+
+  // Remove export param from URL
+  const cleanURL = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, document.title, cleanURL);
+}
 }
 
 /* Rendering */
@@ -335,41 +483,43 @@ function applyURLState(){
 function render(){
   const container = document.getElementById("years");
   container.innerHTML = "";
-
-  Object.keys(data).sort((a,b)=>b-a).forEach(year => {
+const activeData = getActiveData();
+Object.keys(activeData).sort((a,b)=> currentView === "year" ? b-a : 0).forEach(sectionKey => {
 
     const section = document.createElement("div");
     section.className = "year-section";
-    if(collapsedState[year]) section.classList.add("collapsed");
+    if(collapsedState[sectionKey]) section.classList.add("collapsed");
 
-    const img = document.createElement("img");
+    if(currentView === "year"){const img = document.createElement("img");
     img.className = "year-image";
-    img.src = "./zbsBanner" + year + ".png";
+    img.src = "./zbsBanner" + sectionKey + ".png";
     section.appendChild(img);
-
+}
     const header = document.createElement("div");
     header.className = "year-header";
-    header.onclick = () => toggleCollapse(year);
+    header.onclick = () => toggleCollapse(sectionKey);;
 
     const top = document.createElement("div");
     top.className = "year-top";
 
     const title = document.createElement("div");
     title.className = "year-title";
-    title.innerText = year;
+    title.innerText = sectionKey;
 
     const toggle = document.createElement("div");
     toggle.className = "toggle-collapse";
-    toggle.innerText = collapsedState[year] ? "+" : "−";
+    toggle.innerText = collapsedState[sectionKey] ? "+" : "−";
 
     top.appendChild(title);
     top.appendChild(toggle);
     header.appendChild(top);
 
-    let completed = 0;
-    data[year].forEach((_,i)=>{ if(state[`${year}-${i}`]) completed++; });
+let completed = 0;
+activeData[sectionKey].forEach(item => {
+  if(state[item]) completed++;
+});
 
-    const percent = Math.round((completed / data[year].length) * 100);
+    const percent = Math.round((completed / activeData[sectionKey].length) * 100);
 
     const bar = document.createElement("div");
     bar.className = "progress-bar";
@@ -380,7 +530,7 @@ function render(){
 
     const text = document.createElement("div");
     text.className = "progress-text";
-    text.innerText = `${completed}/${data[year].length} completed • ${percent}%`;
+    text.innerText = `${completed}/${activeData[sectionKey].length} completed • ${percent}%`;
 
     header.appendChild(bar);
     header.appendChild(text);
@@ -401,7 +551,9 @@ function render(){
     markAll.onclick = (e)=>{
       e.stopPropagation();
       if(readOnlyShareMode) return;
-      data[year].forEach((_,i)=> state[`${year}-${i}`]=true);
+      activeData[sectionKey].forEach(item =>
+  state[item] = true
+);
       saveState();
       render();
     };
@@ -412,7 +564,9 @@ function render(){
     clearAll.onclick = (e)=>{
       e.stopPropagation();
       if(readOnlyShareMode) return;
-      data[year].forEach((_,i)=> state[`${year}-${i}`]=false);
+      activeData[sectionKey].forEach(item =>
+  state[item] = false
+);
       saveState();
       render();
     };
@@ -423,8 +577,8 @@ function render(){
 
     /* Items */
 
-    data[year].forEach((item,i)=>{
-      const id = `${year}-${i}`;
+    activeData[sectionKey].forEach((item,i)=>{
+     const id = item;
 
       const row = document.createElement("div");
       row.className = "item";
@@ -463,53 +617,60 @@ function saveState(){
 
 function loadState(){
   const saved = localStorage.getItem("bigSpinState");
-  if(saved) state = JSON.parse(saved);
+  if(!saved) return;
+
+  const oldState = JSON.parse(saved);
+  state = {};
+
+  Object.keys(oldState).forEach(key => {
+    if(allItems.includes(key)){
+      // New style key, just copy
+      state[key] = oldState[key];
+    } else {
+      // Old style key, like "2025-3"
+      const parts = key.split("-");
+      if(parts.length === 2){
+        const year = parts[0];
+        const index = parseInt(parts[1]);
+        if(yearData[year] && yearData[year][index]){
+          const itemName = yearData[year][index];
+          state[itemName] = oldState[key];
+        }
+      }
+    }
+  });
 }
 
 /* Collapse */
 
-function toggleCollapse(year){
-  collapsedState[year] = !collapsedState[year];
+function toggleCollapse(sectionKey){
+  collapsedState[sectionKey] = !collapsedState[sectionKey];
   render();
 }
 
 /* Share / Export */
 
 function encodeStateCompact() {
-  const years = Object.keys(data).sort((a,b)=>b-a);
-  let result = [];
+  let bits = "";
 
-  years.forEach(year => {
-    let bits = "";
-    data[year].forEach((_, i) => {
-      bits += state[`${year}-${i}`] ? "1" : "0";
-    });
-
-    // Convert binary to base36 (much shorter)
-    const base36 = parseInt(bits || "0", 2).toString(36);
-    result.push(base36);
+  allItems.forEach(item => {
+    bits += state[item] ? "1" : "0";
   });
 
-  return result.join(".");
+  return parseInt(bits || "0", 2).toString(36);
 }
 
 function decodeStateCompact(encoded) {
-  const years = Object.keys(data).sort((a,b)=>b-a);
-  const parts = encoded.split(".");
+  const binary = parseInt(encoded || "0", 36)
+    .toString(2)
+    .padStart(allItems.length, "0");
 
   state = {};
 
-  years.forEach((year, yIndex) => {
-    const base36 = parts[yIndex] || "0";
-    const binary = parseInt(base36, 36)
-      .toString(2)
-      .padStart(data[year].length, "0");
-
-    binary.split("").forEach((bit, i) => {
-      if(bit === "1") {
-        state[`${year}-${i}`] = true;
-      }
-    });
+  binary.split("").forEach((bit, i) => {
+    if(bit === "1"){
+      state[allItems[i]] = true;
+    }
   });
 }
 
@@ -540,9 +701,26 @@ function copyShareLink(){
     closeShareModal();
   });
 }
+function setView(view){
+  currentView = view;
+
+  document.getElementById("btn-year").classList.remove("active");
+  document.getElementById("btn-type").classList.remove("active");
+  document.getElementById("btn-route").classList.remove("active");
+
+  document.getElementById("btn-" + view).classList.add("active");
+
+  render();
+}
+function getActiveData() {
+  if(currentView === "year") return yearData;
+  if(currentView === "type") return typeData;
+  if(currentView === "route") return routeData;
+}
 
 init();
 
 </script>
+
 </body>
 </html>
